@@ -49,7 +49,7 @@ module.exports = {
       directory: path.resolve(__dirname, 'dist'),
     },
     compress: true,
-    port: 5500,
+    port: 9001,
     open: true,
   },
   plugins: [
