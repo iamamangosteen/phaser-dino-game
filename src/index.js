@@ -36,7 +36,8 @@ let clouds;
 
 function preload() {
     //load assets
-    this.load.spritesheet("dino", "assets/dino-run.png", {frameWidth: 88, frameHeight:94})
+    this.load.spritesheet("dino", "assets/dino-run.png", {frameWidth: 88, frameHeight:94});
+    this.load.image("dino-hurt", "assets/dino-hurt.png");
     this.load.image("ground", "assets/ground.png");
     this.load.image("cloud", "assets/cloud.png");
 
@@ -47,6 +48,10 @@ function preload() {
 
     this.load.image("game-over", "assets/game-over.png");
     this.load.image("restart", "assets/restart.png");
+
+    //load sound assets
+    this.load.audio("jump", "assets/jump.m4a");
+    this.load.audio("hit", "assets/hit.m4a");
 }
 
 function create() {
@@ -76,6 +81,15 @@ function create() {
     console.log(score);
     */
 
+    //display high score
+    this.highScore = 0;
+    this.highScoreText = this.add.text(700, 0, "High: 00000", {
+        fontSize: 30,
+        fontFamily: "Arial",
+        color: "#535353",
+        resolution: 5
+    }).setOrigin(1,0).setAlpha(1);
+
     //add the dino sprite
     this.player = this.physics.add.sprite(200, 200, "dino")
         .setDepth(1)
@@ -83,7 +97,6 @@ function create() {
         .setGravityY(5000)
         .setCollideWorldBounds(true)
         .setBodySize(44,92);
-        
 
     //add the ground image
     this.ground = this.add
@@ -116,13 +129,36 @@ function create() {
         .add([this.gameOverText, this.restartText])
         .setAlpha(0);
 
+    //Optional congrats message
+    this.congratsText = this.add.text(0, 0, "Congratulations! A new high score!", {
+        fontSize: 30,
+        fontFamily: "Arial",
+        color: "#535353",
+        resolution: 5
+    }).setOrigin(0).setAlpha(0); //alpha 0 to hide message initially
 }
 
 function gameOver() {
+    //check to see if high score
+    if (this.score > this.highScore) {
+        
+        //update high score variable
+        this.highScore = this.score;
+
+        //update high score text
+        this.highScoreText.setText("High: " + String(this.highScore).padStart(5,"0"));
+
+        //show Congrats
+        this.congratsText.setAlpha(1);
+    }
+
     this.physics.pause();
     this.timer = 0;
     this.isGameRunning = false;
     this.gameOverContainer.setAlpha(1);
+    this.anims.pauseAll();
+    this.player.setTexture("dino-hurt");
+    this.sound.play("hit");
 }
 
 function update(time, delta) {
@@ -152,6 +188,7 @@ function update(time, delta) {
         || Phaser.Input.Keyboard.JustDown(up)
         && this.player.body.onFloor()) {
         this.player.setVelocityY(-1600);
+        this.sound.play("jump");
     }
 
     this.restartText.on("pointerdown", () => {
@@ -159,10 +196,16 @@ function update(time, delta) {
         this.player.setVelocityY(0);
         this.obstacles.clear(true, true);
         this.gameOverContainer.setAlpha(0);
-        this.isGameRunning = true;
+        this.congratsText.setAlpha(0);
         this.frameCounter = 0;
+        this.score = 0;
+        const formattedScore = String(Math.floor(this.score)).padStart(5, "0");
+        this.scoreText.setText(formattedScore);
+        this.isGameRunning = true;
+        this.anims.resumeAll();
     })
 
+    //update score
     this.frameCounter++;
     if (this.frameCounter > 100) {
         this.score += 100;
@@ -170,5 +213,25 @@ function update(time, delta) {
         this.scoreText.setText(formattedScore);
         this.frameCounter -= 100;
     }
+
+    //create dino-run animation
+    this.anims.create({
+        key: "dino-run",
+        frames: this.anims.generateFrameNames("dino", {start: 2, end: 3}),
+        frameRate: 10,
+        repeat: -1
+    });
+
+    // if jumping, do not display dino-run animation and display texture
+    if (this.player.body.deltaAbsY() > 4) {
+        //temporarily stop the running animation
+        this.player.anims.stop();
+        //set texture to the first frame (index 0) in the spritesheet
+        this.player.setTexture("dino", 0); 
+    } else {
+        //otherwise play the dino-run animation
+        this.player.play("dino-run", true);
+    }
+    
 
 }
